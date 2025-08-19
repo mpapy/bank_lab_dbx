@@ -1,0 +1,303 @@
+# Raiffeisen Bank Data Platform Configuration
+# =============================================
+
+# Environment Configuration
+environments:
+  dev:
+    catalog: "raiffka_catalog"
+    bronze_schema: "dev_bronze"
+    silver_schema: "dev_silver"
+    gold_schema: "dev_gold"
+    security_schema: "security"
+    governance_schema: "governance"
+    
+  prod:
+    catalog: "raiffka_catalog"
+    bronze_schema: "bronze"
+    silver_schema: "silver"
+    gold_schema: "gold"
+    security_schema: "security"
+    governance_schema: "governance"
+
+# Data Quality Configuration
+data_quality:
+  thresholds:
+    null_percentage_threshold: 0.1
+    duplicate_percentage_threshold: 0.05
+    outlier_percentage_threshold: 0.02
+    data_freshness_hours: 24
+    completeness_threshold: 0.95
+    validity_threshold: 0.98
+    consistency_threshold: 0.99
+    
+  monitoring:
+    enable_real_time: true
+    alert_on_threshold_breach: true
+    store_quality_metrics: true
+    retention_days: 2555  # 7 years for banking compliance
+
+# Security Configuration
+security:
+  pii_columns:
+    - "rodne_cislo"
+    - "email"
+    - "tel_cislo"
+    - "jmeno"
+    - "prijmeni"
+    
+  sensitive_columns:
+    - "prijem"
+    - "sum_prm_uspor_12m"
+    - "balance"
+    - "amount"
+    - "fraud_risk_score"
+    
+  user_groups:
+    EXECUTIVES:
+      access_level: 5
+      pii_access: "FULL"
+      financial_data_access: true
+      geographic_restrictions: []
+      
+    MANAGERS:
+      access_level: 4
+      pii_access: "PARTIAL"
+      financial_data_access: true
+      geographic_restrictions: ["REGIONAL"]
+      
+    ANALYSTS:
+      access_level: 3
+      pii_access: "MASKED"
+      financial_data_access: false
+      geographic_restrictions: []
+      
+    COMPLIANCE:
+      access_level: 4
+      pii_access: "PARTIAL"
+      financial_data_access: false
+      audit_log_access: true
+      
+    EXTERNAL:
+      access_level: 1
+      pii_access: "NONE"
+      financial_data_access: false
+      geographic_restrictions: ["RESTRICTED"]
+
+# Pipeline Configuration
+pipelines:
+  bronze:
+    max_files_per_trigger: 1000
+    schema_evolution: true
+    enable_cdf: true
+    optimization:
+      auto_optimize: true
+      auto_compact: true
+      
+  silver:
+    scd_type: 2
+    enable_expectations: true
+    quarantine_bad_records: true
+    enable_lineage_tracking: true
+    
+  gold:
+    materialization_strategy: "streaming"
+    enable_caching: true
+    partition_strategy: "date_based"
+
+# Monitoring Configuration
+monitoring:
+  sla_definitions:
+    bronze_pipeline:
+      max_duration_minutes: 30
+      availability_target: 99.5
+      
+    silver_pipeline:
+      max_duration_minutes: 45
+      availability_target: 99.0
+      
+    gold_pipeline:
+      max_duration_minutes: 20
+      availability_target: 98.5
+      
+    fraud_detection:
+      max_latency_seconds: 30
+      accuracy_target: 95.0
+      
+  alert_routing:
+    CRITICAL:
+      channels: ["email", "slack", "pagerduty"]
+      recipients: ["data-engineering-oncall@raiffeisenbank.com"]
+      escalation_minutes: 15
+      
+    HIGH:
+      channels: ["email", "slack"]
+      recipients: ["data-engineering@raiffeisenbank.com"]
+      escalation_minutes: 60
+      
+    MEDIUM:
+      channels: ["slack"]
+      recipients: ["#data-monitoring"]
+      escalation_minutes: 240
+      
+    LOW:
+      channels: ["dashboard"]
+      recipients: []
+      escalation_minutes: 1440
+
+# Business Rules Configuration
+business_rules:
+  customer_segmentation:
+    life_stages:
+      - name: "Young_Adult"
+        age_range: [18, 24]
+        products: ["student_banking", "digital_services"]
+        
+      - name: "Early_Career"
+        age_range: [25, 34]
+        products: ["mortgage", "investment_planning"]
+        
+      - name: "Mid_Career"
+        age_range: [35, 44]
+        products: ["family_banking", "education_savings"]
+        
+      - name: "Peak_Career"
+        age_range: [45, 54]
+        products: ["investment_portfolio", "retirement_planning"]
+        
+      - name: "Pre_Retirement"
+        age_range: [55, 64]
+        products: ["retirement_accounts", "estate_planning"]
+        
+      - name: "Retirement"
+        age_range: [65, 100]
+        products: ["pension_services", "healthcare_financing"]
+        
+  wealth_segments:
+    - name: "Affluent"
+      criteria: "income > 80000 AND property_count > 2"
+      services: ["private_banking", "wealth_management"]
+      
+    - name: "Upper_Middle"
+      criteria: "income > 60000"
+      services: ["premium_banking", "investment_advisory"]
+      
+    - name: "Middle"
+      criteria: "income > 40000"
+      services: ["standard_banking", "financial_planning"]
+      
+    - name: "Lower_Middle"
+      criteria: "income > 25000"
+      services: ["basic_banking", "credit_services"]
+      
+    - name: "Mass_Market"
+      criteria: "income <= 25000"
+      services: ["basic_services", "financial_education"]
+      
+  risk_scoring:
+    factors:
+      income_weight: 0.4
+      age_weight: 0.2
+      employment_weight: 0.3
+      property_weight: 0.1
+      
+    thresholds:
+      low_risk: 1.5
+      medium_risk: 2.5
+      high_risk: 3.5
+
+# Fraud Detection Configuration
+fraud_detection:
+  scoring_model:
+    amount_anomaly_weight: 30
+    time_anomaly_weight: 20
+    velocity_anomaly_weight: 25
+    customer_risk_weight: 15
+    geographic_anomaly_weight: 10
+    
+  thresholds:
+    critical_score: 70
+    high_score: 40
+    medium_score: 20
+    
+  velocity_limits:
+    max_transactions_per_day: 20
+    max_amount_per_day_ratio: 0.5  # 50% of annual income
+    
+  time_patterns:
+    unusual_hours: [1, 2, 3, 4, 5]  # 1 AM to 5 AM
+    high_risk_days: [6, 7]  # Saturday, Sunday
+
+# Compliance Configuration
+compliance:
+  regulations:
+    GDPR:
+      data_retention_years: 7
+      right_to_erasure: true
+      consent_tracking: true
+      
+    PCI_DSS:
+      encryption_required: true
+      access_logging: true
+      vulnerability_scanning: true
+      
+    Basel_III:
+      risk_reporting: true
+      capital_adequacy: true
+      liquidity_coverage: true
+      
+    AML:
+      transaction_monitoring: true
+      suspicious_activity_reporting: true
+      customer_due_diligence: true
+      
+  audit_requirements:
+    log_retention_years: 7
+    access_monitoring: true
+    change_tracking: true
+    compliance_reporting: true
+
+# Performance Configuration
+performance:
+  delta_optimizations:
+    auto_optimize: true
+    auto_compact: true
+    optimize_write: true
+    z_order_columns: ["customer_id", "transaction_date"]
+    
+  caching:
+    enable_disk_cache: true
+    cache_hot_tables: true
+    cache_duration_hours: 24
+    
+  partitioning:
+    bronze_partition_columns: ["snapshot_date", "_processing_date"]
+    silver_partition_columns: ["risk_category", "customer_segment_hash"]
+    gold_partition_columns: ["measurement_date", "severity_level"]
+
+# Integration Configuration
+integrations:
+  external_systems:
+    customer_management:
+      connection_string: "jdbc:sqlserver://cms.raiffeisenbank.com"
+      refresh_frequency: "hourly"
+      
+    core_banking:
+      connection_string: "jdbc:oracle://cbs.raiffeisenbank.com"
+      refresh_frequency: "real-time"
+      
+    card_processing:
+      connection_string: "kafka://cards.raiffeisenbank.com"
+      refresh_frequency: "streaming"
+      
+  notification_channels:
+    email:
+      smtp_server: "smtp.raiffeisenbank.com"
+      from_address: "data-platform@raiffeisenbank.com"
+      
+    slack:
+      webhook_url: "https://hooks.slack.com/services/..."
+      default_channel: "#data-alerts"
+      
+    pagerduty:
+      integration_key: "..."
+      service_key: "..."
