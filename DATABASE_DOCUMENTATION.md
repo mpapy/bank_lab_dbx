@@ -527,24 +527,41 @@ __END_AT        TIMESTAMP
 
 #### DIM_GEOGRAPHY_HIERARCHY
 
-**Účel**: Denormalizovaná geografická hierarchie pro výkonné dotazy.
+**Business účel**: **Denormalizovaná geografická hierarchie** pro rychlé geografické analýzy bez složitých JOINů. Klíčová pro:
 
+- **Regional Performance** - výkonnost podle regionů
+- **Branch Analytics** - analýza výkonnosti poboček  
+- **Geographic Reporting** - geografické reporty pro management
+- **Drill-down Analysis** - region → city → branch hierarchie
+
+**Skutečná implementace:**
+```sql
+-- JOIN branches + cities + regions do jedné denormalizované tabulky
+branches.join(cities).join(regions)
+```
+
+**Struktura podle implementace:**
 ```sql
 branch_id              STRING  -- ID pobočky
-branch_name           STRING  -- Název pobočky
-branch_address        STRING  -- Adresa pobočky
-branch_street         STRING  -- Ulice pobočky
-branch_street_number  STRING  -- Číslo popisné
-branch_zip_code       STRING  -- PSČ pobočky
-branch_city_name      STRING  -- Město pobočky
+branch_name           STRING  -- nazev pobočky
+branch_address        STRING  -- adresa pobočky  
+branch_street         STRING  -- ulice pobočky
+branch_street_number  STRING  -- cislo_popisne
+branch_zip_code       STRING  -- zip_code pobočky
+branch_city_name      STRING  -- mesto pobočky
 city_id               STRING  -- ID města
-city_name             STRING  -- Název města
+city_name             STRING  -- nazev města
 region_id             STRING  -- ID regionu
-region_name           STRING  -- Název regionu
-geography_key         STRING  -- Kompozitní klíč (region-city-branch)
-geography_level       STRING  -- Úroveň hierarchie
-created_at           TIMESTAMP -- Čas vytvoření
+region_name           STRING  -- nazev regionu
+geography_key         STRING  -- concat(region_id,"-",city_id,"-",branch_id)
+geography_level       STRING  -- vždy "Branch"
+created_at           TIMESTAMP -- current_timestamp()
 ```
+
+**Business hodnota:**
+- **Rychlé geografické dotazy** - vše v jedné tabulce
+- **Hierarchical reporting** - region/city/branch drill-down
+- **Performance optimization** - eliminuje JOINy v reportech
 
 #### BRANCHES_SILVER - POBOČKY (OČIŠTĚNÉ)
 
